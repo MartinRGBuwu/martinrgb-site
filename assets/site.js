@@ -40,7 +40,17 @@ var MONTHLY = {
 
   /* language */
   var titles = { es: document.title, en: (document.querySelector('meta[name="title-en"]') || {}).content || document.title };
+  /* SkinSniper links follow the language: /es/ pages when Spanish is selected */
+  var SS = 'https://skinsniper.com';
+  function skinsniperLinks(l) {
+    document.querySelectorAll('a[href^="' + SS + '"]').forEach(function (a) {
+      var base = a.getAttribute('data-ss') || a.getAttribute('href').replace(SS + '/es/', SS + '/').replace(/\/es$/, '');
+      a.setAttribute('data-ss', base);
+      a.setAttribute('href', l === 'es' ? base.replace(SS, SS + '/es') : base);
+    });
+  }
   function setLang(l) {
+    skinsniperLinks(l);
     root.setAttribute('data-lang', l);
     root.setAttribute('lang', l);
     document.title = titles[l];
@@ -72,16 +82,68 @@ var MONTHLY = {
     });
   }
 
-  /* skin carousel: clone the row once so it loops seamlessly */
+  /* skin carousel: scrolls on its own, plus arrows and drag/swipe */
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.querySelectorAll('.carousel').forEach(function (c) {
-    if (reduce) return;
-    var track = c.querySelector('.track');
+  document.querySelectorAll('.car-wrap').forEach(function (wrap) {
+    var c = wrap.querySelector('.carousel'), track = c.querySelector('.track');
     Array.prototype.slice.call(track.children).forEach(function (el) {
-      var copy = el.cloneNode(true); copy.setAttribute('aria-hidden', 'true'); track.appendChild(copy);
+      var copy = el.cloneNode(true); copy.setAttribute('aria-hidden', 'true'); copy.tabIndex = -1; track.appendChild(copy);
     });
-    c.style.setProperty('--dur', (track.children.length * 3.2) + 's');
-    c.classList.add('running');
+    c.classList.add('js');
+    var x = 0, half = 0, speed = 28, hovering = false, dragging = false, resumeAt = 0, target = null, last = 0;
+    var startX = 0, startPos = 0, moved = 0, pid = null;
+    function measure() { half = track.scrollWidth / 2; }
+    function wrapX(v) { if (!half) return v; v = v % half; if (v > 0) v -= half; return v; }
+    function step() { var first = track.children[0]; return first ? first.getBoundingClientRect().width + 12 : 200; }
+    function render() { track.style.transform = 'translate3d(' + x + 'px,0,0)'; }
+    function tick(now) {
+      var dt = last ? Math.min((now - last) / 1000, 0.05) : 0; last = now;
+      if (!dragging) {
+        if (target !== null) {
+          var d = target - x; x += d * Math.min(1, dt * 9);
+          if (Math.abs(d) < 0.5) { x = target; target = null; }
+        } else if (!reduce && !hovering && now > resumeAt) {
+          x -= speed * dt;
+        }
+        var w = wrapX(x); if (target !== null) target += (w - x); x = w;
+      }
+      render(); requestAnimationFrame(tick);
+    }
+    function nudge(dir) {
+      var base = target !== null ? target : x;
+      var dest = base - dir * step() * 2;
+      if (dest > 0) { x -= half; dest -= half; }
+      if (dest < -half) { x += half; dest += half; }
+      target = dest; resumeAt = performance.now() + 4000;
+      if (reduce) { x = wrapX(dest); target = null; }
+    }
+    wrap.querySelector('.prev').addEventListener('click', function () { nudge(-1); });
+    wrap.querySelector('.next').addEventListener('click', function () { nudge(1); });
+    c.addEventListener('mouseenter', function () { hovering = true; });
+    c.addEventListener('mouseleave', function () { hovering = false; });
+    c.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      dragging = true; target = null; moved = 0; startX = e.clientX; startPos = x; pid = e.pointerId;
+    });
+    window.addEventListener('pointermove', function (e) {
+      if (!dragging || e.pointerId !== pid) return;
+      var dx = e.clientX - startX; moved = Math.max(moved, Math.abs(dx));
+      if (moved > 5) { c.classList.add('grabbing'); try { c.setPointerCapture(pid); } catch (er) {} }
+      x = startPos + dx;
+      if (x > 0) { x -= half; startPos -= half; }
+      if (x < -half) { x += half; startPos += half; }
+    });
+    function end(e) {
+      if (!dragging || (e && e.pointerId !== pid)) return;
+      dragging = false; c.classList.remove('grabbing'); resumeAt = performance.now() + 3000;
+    }
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    c.addEventListener('click', function (e) { if (moved > 5) { e.preventDefault(); e.stopPropagation(); } }, true);
+    c.addEventListener('dragstart', function (e) { e.preventDefault(); });
+    measure(); window.addEventListener('resize', measure);
+    window.addEventListener('load', measure);
+    requestAnimationFrame(tick);
   });
 
   /* screenshot galleries */
