@@ -548,3 +548,16 @@ a.case:hover h3 { text-decoration: underline; text-underline-offset: 4px; }
 .case.vertical .vframe { display: flex; }
 .case.vertical .thumb.vt { flex: 1; aspect-ratio: auto; min-height: 260px; }
 @media (max-width: 860px) { .case.vertical .thumb.vt { aspect-ratio: 9/16; min-height: 0; flex: none; width: 100%; } .case.vertical .vframe { display: block; } }
+
+/* carousel controls: arrows + drag */
+.car-wrap { position: relative; }
+.carousel.js { cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.carousel.js .track { animation: none !important; will-change: transform; }
+.carousel.grabbing { cursor: grabbing; }
+.carousel img { -webkit-user-drag: none; user-drag: none; pointer-events: none; }
+.car-btn { position: absolute; top: 38%; transform: translateY(-50%); z-index: 3; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel-2) 92%, transparent); color: var(--fg); display: grid; place-items: center; cursor: pointer; box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+.car-btn:hover { background: var(--fg); color: #111318; }
+.car-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.car-btn.prev { left: -6px; } .car-btn.next { right: -6px; }
+@media (max-width: 600px) { .car-btn { width: 38px; height: 38px; } .car-btn.prev { left: 0; } .car-btn.next { right: 0; } }
+@media (prefers-reduced-motion: reduce) { .carousel.js { overflow: hidden; } }
